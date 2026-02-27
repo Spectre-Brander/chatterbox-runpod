@@ -9,26 +9,24 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR /app
 
-# System dependency: ffmpeg for audio format conversion
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Uninstall conflicting pre-installed torchvision, then install chatterbox-tts + runpod
 RUN pip uninstall -y torchvision && \
     pip install --no-cache-dir chatterbox-tts runpod
 
-# Pre-download model weights so cold starts are fast
+# Pre-download weights to cache (don't load model — just cache the files)
 RUN python -c "\
-from chatterbox.tts import ChatterboxTTS; \
-ChatterboxTTS.from_pretrained(device='cpu') \
+import os; os.environ['TRANSFORMERS_VERBOSITY']='error'; \
+from huggingface_hub import snapshot_download; \
+snapshot_download('ResembleAI/chatterbox', cache_dir='/app/hf_cache'); \
+print('Weights cached.') \
 "
 
-# Create voice reference directory
 RUN mkdir -p /app/voices
 
-# Copy handler
 COPY handler.py /app/handler.py
 
 CMD ["python", "-u", "/app/handler.py"]
