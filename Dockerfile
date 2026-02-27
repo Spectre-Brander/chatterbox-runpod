@@ -15,23 +15,20 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Python dependencies — install chatterbox-tts (brings torch, torchaudio, etc.)
-# Pin runpod separately since it's not a chatterbox dependency
-RUN pip install --no-cache-dir \
-    chatterbox-tts \
-    runpod
+# Uninstall conflicting pre-installed torchvision, then install chatterbox-tts + runpod
+RUN pip uninstall -y torchvision && \
+    pip install --no-cache-dir chatterbox-tts runpod
 
-# Pre-download model weights so cold starts don't require a HuggingFace download.
-# This bakes ~2 GB of weights into the image layer.
+# Pre-download model weights so cold starts are fast
 RUN python -c "\
 from chatterbox.tts import ChatterboxTTS; \
 ChatterboxTTS.from_pretrained(device='cpu') \
 "
 
-# Create voice reference directory (users can bake a WAV in or mount one)
+# Create voice reference directory
 RUN mkdir -p /app/voices
 
-# Copy handler last (changes most often → best Docker layer caching)
+# Copy handler
 COPY handler.py /app/handler.py
 
 CMD ["python", "-u", "/app/handler.py"]
